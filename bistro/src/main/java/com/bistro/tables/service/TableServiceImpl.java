@@ -1,11 +1,14 @@
 package com.bistro.tables.service;
 
 import com.bistro.tables.model.Table;
+import com.bistro.tables.model.TableAssignment;
+import com.bistro.tables.repository.TableAssignmentRepository;
 import com.bistro.tables.repository.TableRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +18,7 @@ import java.util.Optional;
 public class TableServiceImpl implements TableService {
 
     private final TableRepository tableRepository;
+    private final TableAssignmentRepository assignmentRepository;
 
     @Override
     public List<Table> findCandidateTables(int partySize) {
@@ -29,12 +33,18 @@ public class TableServiceImpl implements TableService {
 
     @Transactional
     @Override
-    public Optional<Table> assignTableFor(int partySize) {
+    public Optional<Table> assignTableFor(Long reservationId, int partySize, LocalDateTime reservationTime) {
 
         for( Table candidate : findCandidateTables(partySize)){
-            Optional<Table> locked = lockTable(candidate.getId());
-            if(locked.isPresent()){
-                return locked;
+            lockTable(candidate.getId());
+
+            boolean taken = assignmentRepository.existsByTableIdAndReservationTime(candidate.getId(), reservationTime);
+
+            if(!taken){
+                assignmentRepository.save(new TableAssignment(
+                        candidate.getId(), reservationId, reservationTime
+                ));
+                return Optional.of(candidate);
             }
         }
         return Optional.empty();

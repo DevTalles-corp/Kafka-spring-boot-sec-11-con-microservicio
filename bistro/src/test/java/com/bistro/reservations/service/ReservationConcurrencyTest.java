@@ -11,12 +11,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
 @ActiveProfiles("dev")
@@ -31,11 +33,8 @@ class ReservationConcurrencyTest {
     @Autowired
     private ReservationRepository reservationRepository;
 
-    @Disabled("Cuenta antes de asignar las mesas, y la asignación entrega " +
-            "la misma mesa dos veces. Se resuelve en la sección de testing.")
     @Test
     void shouldConfirmExactlyOneReservationForSameSlotAndTable() throws InterruptedException, ExecutionException {
-        reservationRepository.deleteAll();
 
         LocalDateTime slot = LocalDateTime.of(2026, 8, 25, 19, 0);
         int partySize = 8;
@@ -65,13 +64,17 @@ class ReservationConcurrencyTest {
         }
         executor.shutdown();
 
-        long confirmedCount = responses.stream()
-                .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED)
-                .count();
+        List<String> codes = responses.stream().map(ReservationResponse::getReservationCode).toList();
 
-        assertThat(confirmedCount).isEqualTo(1);
+        await().atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> {
+                    List<ReservationStatus> statuses = codes.stream().map(this::statusOf).toList();
+                    assertThat(statuses).doesNotContain(ReservationStatus.PENDING);
+                    assertThat(statuses).containsOnlyOnce(ReservationStatus.CONFIRMED);
+                });
+    }
 
-        long persistedConfirmed = reservationRepository.countByStatus(ReservationStatus.CONFIRMED);
-        assertThat(persistedConfirmed).isEqualTo(1);
+    private ReservationStatus statusOf(String code) {
+        return reservationRepository.findByReservationCode(code).orElseThrow().getStatus();
     }
 }

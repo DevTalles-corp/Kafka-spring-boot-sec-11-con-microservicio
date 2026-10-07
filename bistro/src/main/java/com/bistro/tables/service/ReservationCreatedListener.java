@@ -31,7 +31,9 @@ public class ReservationCreatedListener {
             return;
         }
 
-        tableService.assignTableFor(event.partySize()).ifPresentOrElse(
+        tableService.assignTableFor(
+                event.reservationId(), event.partySize(), event.reservationTime()
+        ).ifPresentOrElse(
                 table -> {
                     log.info("Reserva {} → mesa {} ({} lugares) asignada",
                             event.reservationId(), table.getTableNumber(), table.getCapacity());
