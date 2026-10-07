@@ -118,6 +118,7 @@ public class ReservationService {
         eventPublisher.publishEvent(new TableRequested(
                 saved.getId(),
                 saved.getPartySize(),
+                saved.getReservationTime(),
                 LocalDateTime.now()));
 
         eventPublisher.publishEvent(new ReservationStateChanged(
