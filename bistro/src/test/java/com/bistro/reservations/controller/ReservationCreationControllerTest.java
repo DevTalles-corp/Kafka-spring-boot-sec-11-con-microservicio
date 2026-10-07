@@ -128,4 +128,34 @@ class ReservationCreationControllerTest {
                 .andExpect(jsonPath("$.title").value("Solicitud inválida"))
                 .andExpect(jsonPath("$.errors").isArray());
     }
+
+    @Test
+    void shouldReturn400WhenReservationIsOutsideTurns() throws Exception {
+        mockMvc.perform(post("/api/v1/reservations")
+                        .with(anaToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "reservationTime": "2026-08-20T21:30:00",
+                              "partySize": 4
+                            }
+                            """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].message")
+                        .value("La reserva debe ser en un turno: 12:00, 14:00, 19:00 o 21:00"));
+    }
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
